@@ -85,21 +85,6 @@ class Corpus:
         plt.axis("off")
         plt.show()
         return wdcloud
-    
-    
-    def save_wordcloud(self, ngram=2):
-        wdcloud = self.wordcloud(ngram)
-
-        # ask to save 
-        ans = input("Would you like to save the wordcloud? ('y' or 'n')\n  $ ")
-        if ans.lower() == 'y':
-            fname = input("Please enter the filename to save as (e.g. 'wordcloud-1-gram.png')\n  $ ")
-            try:
-                wdcloud.to_file(fname)
-            except: 
-                print('Cannot save under that file name. Make sure the path exists.')
-                print("Saving to working directory as 'wordcloud.png'")
-                wdcloud.to_file('wordcloud.png')
 
 
     # getters
@@ -160,8 +145,27 @@ class Corpus:
             print('{}: {}'.format(tnum, twords))
         print('\n\n')
 
+    
+    # export
 
-    def export_topics(self, fname, n_words=10, ngram=None, n_topics=None): 
+    def export_wordcloud(self, ngram=None):
+        if not isinstance(ngram, int):
+            ngram = self.ngram 
+        wdcloud = self.wordcloud(ngram)
+
+        # ask to save 
+        ans = input("Would you like to save the wordcloud? ('y' or 'n')\n  $ ")
+        if ans.lower() == 'y':
+            fname = input("Please enter the filename to save as (e.g. 'wordcloud-1-gram.png')\n  $ ")
+            try:
+                wdcloud.to_file(fname)
+            except: 
+                print('Cannot save under that file name. Make sure the path exists.')
+                print("Saving to working directory as 'wordcloud.png'")
+                wdcloud.to_file('wordcloud.png')
+
+
+    def export_lda_topics(self, fname, n_words=10, ngram=None, n_topics=None): 
         topics = self.get_lda_topics(n_words, ngram, n_topics)
         headers = self._make_topic_headers(n_words)
         with open(fname, 'w', newline='') as f:
