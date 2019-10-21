@@ -13,7 +13,7 @@ from wordcloud import WordCloud
 
 from collections import defaultdict
 from datetime import datetime
-import os, sys 
+import os, sys, csv
 
 class Corpus:
 
@@ -26,9 +26,9 @@ class Corpus:
     #################################################################################
     # Constructor
 
-    def __init__(self, text_df, ngram=2):
+    def __init__(self, text_df, ngram=2, stopwords=True, stem=True):
         self.df['raw_text'] = text_df
-        self.df['stemmed'] = self.df['raw_text'].apply(self._process_raw_text)
+        self.df['stemmed'] = self.df['raw_text'].apply(self._process_raw_text, args=[stopwords, stem])
         self.fit(ngram=ngram)
         try: 
             self.df = self.df.set_index(text_df.index)
@@ -130,16 +130,8 @@ class Corpus:
             top_ngrams[ngram] = ct 
         return top_ngrams
 
-    
-    def show_top_ngrams(self, n=10, ngram=None):
-        top_ngrams = self.get_top_ngrams(n, ngram)
-        print('\n############ TOP NGRAMS ############')
-        for word, ct in top_ngrams.items(): 
-            print('{}: {}'.format(word, ct))
-        print('\n\n')
 
-
-    def show_lda_topics(self, n_words=5, ngram=None, n_topics=None):
+    def get_lda_topics(self, n_words=5, ngram=None, n_topics=None):
 
         # refit the corpus if ngram specified is differen that current fit
         if isinstance(ngram, int) and ngram != self.ngram:
@@ -150,11 +142,45 @@ class Corpus:
             self.fit_lda(n_topics=n_topics)
 
         # display
-        topics = self.lda.show_topics(num_words=n_words)
+        return self.lda.show_topics(num_words=n_words)
+
+    
+    def show_top_ngrams(self, n=10, ngram=None):
+        top_ngrams = self.get_top_ngrams(n, ngram)
+        print('\n############ TOP NGRAMS ############')
+        for word, ct in top_ngrams.items(): 
+            print('{}: {}'.format(word, ct))
+        print('\n\n')
+
+
+    def show_lda_topics(self, n_words=5, ngram=None, n_topics=None):
+        topics = self.get_lda_topics(n_words, ngram, n_topics)
         print('\n############ LDA TOPICS ############')
         for tnum, twords in topics: 
             print('{}: {}'.format(tnum, twords))
         print('\n\n')
+
+
+    def export_topics(self, fname, n_words=10, ngram=None, n_topics=None): 
+        topics = self.get_lda_topics(n_words, ngram, n_topics)
+        headers = self._make_topic_headers(n_words)
+        with open(fname, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+            for tnum, twords in topics: 
+                words = [w for w in twords.split('"') if '*' not in w and w != '']
+                words.insert(0, tnum)         # add topic number to start of list 
+                writer.writerow(words)
+
+
+    def export_top_ngrams(self, fname, n=10, ngram=None): 
+        top_ngrams = self.get_top_ngrams(n, ngram)
+        headers = ['Word', 'Count']
+        with open(fname, 'w', newline='') as f: 
+            writer = csv.writer(f)
+            writer.writerow(headers)
+            for word, ct in top_ngrams.items(): 
+                writer.writerow([word, ct])
 
 
     #################################################################################
@@ -162,11 +188,13 @@ class Corpus:
 
     # process text
 
-    def _process_raw_text(self, txt): 
+    def _process_raw_text(self, txt, stopwords, stem): 
         if isinstance(txt, str):
             t = self._only_alphas(txt)
-            t = self._remove_stop_words(t)
-            t = self._stem(t)
+            if stopwords: 
+                t = self._remove_stop_words(t)
+            if stem: 
+                t = self._stem(t)
         else: 
             t = ''
         return t
@@ -298,6 +326,13 @@ class Corpus:
     # lda helpers 
     def _ngram_str_to_lst(self, ngram_str):
         return [w for w in ngram_str.split(',') if len(w) > 2]
+
+
+    def _make_topic_headers(self, n_words): 
+        headers = ['Topic_Num']
+        for i in range(n_words): 
+            headers.append('Word_{}'.format(i + 1))
+        return headers
 
 
     # gensim helpers 
